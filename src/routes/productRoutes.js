@@ -8,10 +8,12 @@ const {
     updateProduct,
     deleteProduct,
     getLowStockProducts,
-    updateStock
+    updateStock,
+    searchProducts // Importing the searchProducts function
 } = require('../controllers/productController');
 const { protect, authorize, checkDepartmentAccess } = require('../middleware/auth');
 const validateRequest = require('../middleware/validateRequest');
+const userActivityTracker = require('../middleware/userActivityTracker');
 
 // Validation rules
 const productValidation = [
@@ -129,6 +131,15 @@ router
         productValidation,
         validateRequest,
         createProduct
+    );
+
+// Search Products Route
+router
+    .route('/search')
+    .get(
+        protect,
+        authorize('ADMIN', 'MANAGER', 'WAREHOUSE_STAFF'),
+        searchProducts
     );
 
 router

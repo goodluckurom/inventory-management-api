@@ -492,6 +492,28 @@ Webhook Payload Format:
 }
 ```
 
+## Reports
+
+### Generate Inventory Report
+```http
+POST /reports/inventory
+```
+Query Parameters:
+- format: Report format (pdf, excel, csv)
+- category (optional): Filter by category
+- warehouse (optional): Filter by warehouse
+- lowStock (optional): Filter low stock items only
+
+### Generate Sales Report
+```http
+POST /reports/sales
+```
+Query Parameters:
+- format: Report format (pdf, excel, csv)
+- startDate: Start date for report period
+- endDate: End date for report period
+- groupBy (optional): Group results by (day, week, month)
+
 ## Rate Limits
 - Authentication endpoints: 5 requests per minute
 - API endpoints: 100 requests per 15 minutes

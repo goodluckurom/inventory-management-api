@@ -37,7 +37,15 @@ npm start
 ```
 The API will be available at `http://localhost:3000`.
 
-## API Documentation
+## Features
+
+### Reporting Features
+- **Customizable Reporting**: Generate sales and inventory reports based on user-defined parameters.
+- **Data Exporting**: Export reports in various formats including PDF, Excel, and CSV.
+- **Filtering**: Filter reports by various criteria such as date range and product categories.
+- **Low Stock Notifications**: Receive notifications when stock levels fall below a specified threshold.
+
+### API Documentation
 
 ### Authentication
 The API uses JWT (JSON Web Tokens) for authentication. You must include the token in the `Authorization` header of your requests.

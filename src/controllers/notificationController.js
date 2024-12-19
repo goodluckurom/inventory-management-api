@@ -3,6 +3,54 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/asyncHandler');
 const { sendEmail } = require('../utils/emailService');
 
+// Function to send notification
+const sendNotification = async (userId, message, type) => {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+        console.error(`User not found: ${userId}`);
+        return;
+    }
+
+    if (type === 'email') {
+        await sendEmail({
+            email: user.email,
+            subject: 'Notification',
+            template: 'notification',
+            data: {
+                message,
+                date: new Date().toLocaleDateString()
+            }
+        });
+        console.log(`Email notification sent to ${userId}: ${message}`);
+    } else {
+        console.log(`Sending ${type} notification to user ${userId}: ${message}`);
+    }
+};
+
+// Send low stock alert
+exports.sendLowStockAlert = async (product) => {
+    const message = `Low stock alert for product: ${product.name}. Current quantity: ${product.quantity}`;
+    const users = await getUsersWithNotificationPreference('low_stock_alert');
+    users.forEach(user => {
+        sendNotification(user.id, message, 'low_stock');
+    });
+};
+
+// Send order update
+exports.sendOrderUpdate = async (order) => {
+    const message = `Your order ${order.id} has been updated. Status: ${order.status}`;
+    const users = await getUsersWithNotificationPreference('order_update');
+    users.forEach(user => {
+        sendNotification(user.id, message, 'order_update');
+    });
+};
+
+// Function to get users with specific notification preferences
+const getUsersWithNotificationPreference = async (preference) => {
+    // Logic to fetch users from the database based on their preferences
+    return []; // Placeholder for user fetching logic
+};
+
 /**
  * @desc    Get all notifications for a user
  * @route   GET /api/v1/notifications
@@ -18,26 +66,18 @@ exports.getNotifications = asyncHandler(async (req, res) => {
         limit = 20
     } = req.query;
 
-    // Build filter conditions
     const where = {
         AND: [
             { users: { some: { userId: req.user.id } } },
-            // Filter by read status
             read !== undefined ? {
                 users: { some: { userId: req.user.id, isRead: read === 'true' } }
             } : {},
-            // Filter by type
             type ? { type } : {}
         ]
     };
 
-    // Calculate skip value for pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Get total count for pagination
     const total = await prisma.notification.count({ where });
-
-    // Get notifications
     const notifications = await prisma.notification.findMany({
         where,
         include: {
@@ -56,7 +96,6 @@ exports.getNotifications = asyncHandler(async (req, res) => {
         take: parseInt(limit)
     });
 
-    // Calculate pagination details
     const totalPages = Math.ceil(total / parseInt(limit));
     const hasMore = page < totalPages;
 
@@ -147,7 +186,6 @@ exports.markAllAsRead = asyncHandler(async (req, res) => {
 exports.createNotification = asyncHandler(async (req, res) => {
     const { type, message, userIds, sendEmail: shouldSendEmail } = req.body;
 
-    // Create notification
     const notification = await prisma.notification.create({
         data: {
             type,
@@ -173,7 +211,6 @@ exports.createNotification = asyncHandler(async (req, res) => {
         }
     });
 
-    // Send email notifications if requested
     if (shouldSendEmail) {
         const emailPromises = notification.users.map(userNotification => {
             const { email, firstName, lastName } = userNotification.user;

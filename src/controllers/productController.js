@@ -120,6 +120,123 @@ exports.getProducts = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Search products
+ * @route   GET /api/v1/products/search
+ * @access  Private
+ */
+exports.searchProducts = asyncHandler(async (req, res) => {
+    const {
+        search,
+        category,
+        supplier,
+        minPrice,
+        maxPrice,
+        inStock,
+        isActive,
+        sortBy = 'createdAt',
+        order = 'desc',
+        page = 1,
+        limit = 10
+    } = req.query;
+
+    // Build filter conditions
+    const where = {
+        AND: [
+            // Search in name, description, or SKU
+            search ? {
+                OR: [
+                    { name: { contains: search, mode: 'insensitive' } },
+                    { description: { contains: search, mode: 'insensitive' } },
+                    { sku: { contains: search, mode: 'insensitive' } }
+                ]
+            } : {},
+            // Category filter
+            category ? { categoryId: category } : {},
+            // Supplier filter
+            supplier ? { 
+                suppliers: {
+                    some: { supplierId: supplier }
+                }
+            } : {},
+            // Price range filter
+            minPrice || maxPrice ? {
+                price: {
+                    gte: minPrice ? parseFloat(minPrice) : undefined,
+                    lte: maxPrice ? parseFloat(maxPrice) : undefined
+                }
+            } : {},
+            // Stock status filter
+            inStock === 'true' ? { quantity: { gt: 0 } } : 
+            inStock === 'false' ? { quantity: 0 } : {},
+            // Active status filter
+            isActive !== undefined ? { isActive: isActive === 'true' } : {}
+        ].filter(condition => Object.keys(condition).length > 0)
+    };
+
+    // Calculate skip value for pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get total count for pagination
+    const total = await prisma.product.count({ where });
+
+    // Get products with relations
+    const products = await prisma.product.findMany({
+        where,
+        include: {
+            category: true,
+            brand: true,
+            suppliers: {
+                include: {
+                    supplier: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            },
+            warehouse: {
+                select: {
+                    id: true,
+                    name: true,
+                    code: true
+                }
+            },
+            images: true,
+            stockMovements: {
+                take: 5,
+                orderBy: {
+                    createdAt: 'desc'
+                }
+            }
+        },
+        orderBy: {
+            [sortBy]: order.toLowerCase()
+        },
+        skip,
+        take: parseInt(limit)
+    });
+
+    // Calculate pagination details
+    const totalPages = Math.ceil(total / parseInt(limit));
+    const hasMore = page < totalPages;
+
+    res.status(200).json({
+        success: true,
+        count: products.length,
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages,
+            hasMore
+        },
+        data: products
+    });
+});
+
+/**
  * @desc    Get single product
  * @route   GET /api/v1/products/:id
  * @access  Private
@@ -426,6 +543,16 @@ exports.updateStock = asyncHandler(async (req, res) => {
             }
         });
 
+         // Check if stock is below reorder point
+    if (product.quantity < product.reorderPoint) {
+        await sendLowStockAlert(product); // Send low stock alert
+    }
+
+    await prisma.product.update({
+        where: { id: req.params.id },
+        data: { quantity: product.quantity }
+    });
+
         // Create stock movement record
         await prisma.stockMovement.create({
             data: {
@@ -443,5 +570,36 @@ exports.updateStock = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         data: updatedProduct
+    });
+});
+
+
+/**
+ * @desc    Update order status
+ * @route   PUT /api/v1/orders/:id/status
+ * @access  Private
+ */
+exports.updateOrderStatus = asyncHandler(async (req, res, next) => {
+    const order = await prisma.order.findUnique({
+        where: { id: req.params.id }
+    });
+
+    if (!order) {
+        return next(new ErrorResponse('Order not found', 404));
+    }
+
+    // Update order status logic
+    order.status = req.body.status;
+
+    await prisma.order.update({
+        where: { id: req.params.id },
+        data: { status: order.status }
+    });
+
+    await sendOrderUpdate(order); // Send order update notification
+
+    res.status(200).json({
+        success: true,
+        data: order
     });
 });
