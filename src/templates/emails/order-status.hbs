@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #e3f2fd;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            border-bottom: 3px solid #2196f3;
+        }
+        .header h2 {
+            color: #0d47a1;
+            margin: 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .status-PENDING { background-color: #fff3cd; color: #856404; }
+        .status-CONFIRMED { background-color: #d4edda; color: #155724; }
+        .status-PROCESSING { background-color: #cce5ff; color: #004085; }
+        .status-SHIPPED { background-color: #e2e3e5; color: #383d41; }
+        .status-DELIVERED { background-color: #d4edda; color: #155724; }
+        .status-CANCELLED { background-color: #f8d7da; color: #721c24; }
+        .status-RETURNED { background-color: #fff3cd; color: #856404; }
+        
+        .content {
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+        }
+        .order-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .order-info {
+            margin: 10px 0;
+        }
+        .order-info span {
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .amount {
+            text-align: right;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #f8f9fa;
+        }
+        .shipping-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .next-steps {
+            background-color: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Order Status Update</h2>
+        <div class="status-badge status-{{status}}">{{status}}</div>
+    </div>
+    
+    <div class="content">
+        <p>Hello {{firstName}} {{lastName}},</p>
+        
+        <p>Your {{orderType}} order status has been updated:</p>
+        
+        <div class="order-details">
+            <div class="order-info">
+                <span>Order Number:</span> {{orderNumber}}
+            </div>
+            <div class="order-info">
+                <span>Date:</span> {{orderDate}}
+            </div>
+            <div class="order-info">
+                <span>Previous Status:</span> {{previousStatus}}
+            </div>
+            <div class="order-info">
+                <span>New Status:</span> {{status}}
+            </div>
+            {{#if statusNote}}
+            <div class="order-info">
+                <span>Status Note:</span> {{statusNote}}
+            </div>
+            {{/if}}
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each items}}
+                <tr>
+                    <td>{{name}}</td>
+                    <td>{{quantity}} {{unit}}</td>
+                    <td class="amount">{{unitPrice}}</td>
+                    <td class="amount">{{total}}</td>
+                </tr>
+                {{/each}}
+                <tr class="total-row">
+                    <td colspan="3">Subtotal</td>
+                    <td class="amount">{{subtotal}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">Tax</td>
+                    <td class="amount">{{tax}}</td>
+                </tr>
+                <tr>
+                    <td colspan="3">Shipping</td>
+                    <td class="amount">{{shippingCost}}</td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="3">Total</td>
+                    <td class="amount">{{totalAmount}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        {{#if shippingInfo}}
+        <div class="shipping-info">
+            <h3>Shipping Information</h3>
+            <p><strong>Carrier:</strong> {{shippingInfo.carrier}}</p>
+            <p><strong>Tracking Number:</strong> {{shippingInfo.trackingNumber}}</p>
+            <p><strong>Estimated Delivery:</strong> {{shippingInfo.estimatedDelivery}}</p>
+            {{#if shippingInfo.trackingUrl}}
+            <a href="{{shippingInfo.trackingUrl}}" class="button">Track Shipment</a>
+            {{/if}}
+        </div>
+        {{/if}}
+
+        {{#if nextSteps}}
+        <div class="next-steps">
+            <h3>Next Steps</h3>
+            <ul>
+                {{#each nextSteps}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+
+        <a href="{{systemUrl}}/orders/{{orderId}}" class="button">View Order Details</a>
+    </div>
+    
+    <div class="footer">
+        <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+        <p>This is an automated message from your Inventory Management System.</p>
+        <p>If you have any questions about this order, please contact our support team.</p>
+    </div>
+</body>
+</html>

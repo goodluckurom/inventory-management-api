@@ -1,0 +1,607 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Product and Inventory Management
+model Product {
+  id              String          @id @default(uuid())
+  name            String
+  sku             String          @unique
+  description     String          @db.Text
+  shortDescription String?        @db.Text
+  category        Category        @relation(fields: [categoryId], references: [id])
+  categoryId      String
+  subcategory     Subcategory?   @relation(fields: [subcategoryId], references: [id])
+  subcategoryId   String?
+  brand           Brand          @relation(fields: [brandId], references: [id])
+  brandId         String
+  
+  // Inventory Details
+  quantity        Int            @default(0)
+  unit           Unit
+  weight         Float?         // in kg
+  dimensions     Json?          // {length, width, height} in cm
+  reorderPoint    Int
+  maxStockLevel   Int?
+  minStockLevel   Int           @default(0)
+  
+  // Pricing
+  price          Decimal        @db.Decimal(10, 2)
+  costPrice      Decimal        @db.Decimal(10, 2)
+  wholesalePrice Decimal?       @db.Decimal(10, 2)
+  discountPrice  Decimal?       @db.Decimal(10, 2)
+  taxRate        Decimal        @db.Decimal(5, 2) @default(0)
+  
+  // Location and Storage
+  warehouse      Warehouse      @relation(fields: [warehouseId], references: [id])
+  warehouseId    String
+  location       String         // Specific location within warehouse (e.g., "Shelf A-123")
+  binLocation    String?        // Specific bin/box location
+  barcode        String?        @unique
+  qrCode         String?        @unique
+  
+  // Supplier Information
+  suppliers      ProductSupplier[]
+  preferredSupplierId String?
+  
+  // Media
+  images         ProductImage[]
+  documents      ProductDocument[]
+  
+  // Tracking and Status
+  isActive       Boolean        @default(true)
+  isFeatured     Boolean        @default(false)
+  status         ProductStatus  @default(ACTIVE)
+  condition      ProductCondition @default(NEW)
+  
+  // Movements and History
+  stockMovements StockMovement[]
+  purchaseOrderItems PurchaseOrderItem[]
+  salesOrderItems    SalesOrderItem[]
+  
+  // Batch/Lot Tracking
+  batchNumber    String?
+  serialNumber   String?        @unique
+  manufacturingDate DateTime?
+  expiryDate     DateTime?
+  
+  // Metadata
+  tags           ProductTag[]
+  notes          Note[]
+  
+  // Audit
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  createdBy      User          @relation("ProductCreator", fields: [createdById], references: [id])
+  createdById    String
+  lastModifiedBy User?         @relation("ProductModifier", fields: [lastModifiedById], references: [id])
+  lastModifiedById String?
+  
+  // Quality Control
+  qualityChecks  QualityCheck[]
+  
+  @@index([categoryId, subcategoryId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([sku, barcode])
+}
+
+model Category {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String?     @db.Text
+  slug        String      @unique
+  parentId    String?
+  parent      Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[]  @relation("CategoryHierarchy")
+  products    Product[]
+  subcategories Subcategory[]
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Subcategory {
+  id          String    @id @default(uuid())
+  name        String
+  description String?   @db.Text
+  slug        String    @unique
+  category    Category  @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  products    Product[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([name, categoryId])
+}
+
+model Brand {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?   @db.Text
+  logo        String?   // URL to logo
+  website     String?
+  products    Product[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Supplier Management
+model Supplier {
+  id              String    @id @default(uuid())
+  name            String
+  code            String    @unique
+  type            SupplierType
+  contactPerson   String?
+  email           String    @unique
+  phone           String
+  alternatePhone  String?
+  address         Address?  @relation(fields: [addressId], references: [id])
+  addressId       String?   @unique
+  taxId           String?
+  paymentTerms    String?
+  creditLimit     Decimal?  @db.Decimal(10, 2)
+  website         String?
+  products        ProductSupplier[]
+  purchaseOrders  PurchaseOrder[]
+  rating          Int?      @db.SmallInt
+  status          SupplierStatus @default(ACTIVE)
+  notes           Note[]
+  documents       SupplierDocument[]
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model ProductSupplier {
+  id          String    @id @default(uuid())
+  product     Product   @relation(fields: [productId], references: [id])
+  productId   String
+  supplier    Supplier  @relation(fields: [supplierId], references: [id])
+  supplierId  String
+  price       Decimal   @db.Decimal(10, 2)
+  leadTime    Int       // in days
+  minimumOrder Int
+  isPreferred Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productId, supplierId])
+}
+
+// Warehouse Management
+model Warehouse {
+  id          String    @id @default(uuid())
+  name        String
+  code        String    @unique
+  type        WarehouseType
+  address     Address   @relation(fields: [addressId], references: [id])
+  addressId   String    @unique
+  capacity    Int?      // in cubic meters
+  products    Product[]
+  zones       Zone[]
+  staff       User[]    // Assigned staff
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Zone {
+  id          String    @id @default(uuid())
+  name        String
+  code        String    @unique
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  warehouseId String
+  description String?
+  capacity    Int?      // in cubic meters
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([code, warehouseId])
+}
+
+// Order Management
+model PurchaseOrder {
+  id              String    @id @default(uuid())
+  orderNumber     String    @unique
+  supplier        Supplier  @relation(fields: [supplierId], references: [id])
+  supplierId      String
+  status          OrderStatus @default(DRAFT)
+  items           PurchaseOrderItem[]
+  totalAmount     Decimal   @db.Decimal(10, 2)
+  tax            Decimal   @db.Decimal(10, 2)
+  shippingCost   Decimal   @db.Decimal(10, 2)
+  discount       Decimal   @db.Decimal(10, 2)
+  notes          Note[]
+  documents      OrderDocument[]
+  expectedDate   DateTime
+  deliveryDate   DateTime?
+  createdBy      User      @relation(fields: [createdById], references: [id])
+  createdById    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrderId String
+  product         Product       @relation(fields: [productId], references: [id])
+  productId       String
+  quantity        Int
+  unitPrice       Decimal       @db.Decimal(10, 2)
+  totalPrice      Decimal       @db.Decimal(10, 2)
+  receivedQuantity Int          @default(0)
+  status          OrderItemStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model SalesOrder {
+  id              String    @id @default(uuid())
+  orderNumber     String    @unique
+  customer        Customer  @relation(fields: [customerId], references: [id])
+  customerId      String
+  status          OrderStatus @default(DRAFT)
+  items           SalesOrderItem[]
+  totalAmount     Decimal   @db.Decimal(10, 2)
+  tax            Decimal   @db.Decimal(10, 2)
+  shippingCost   Decimal   @db.Decimal(10, 2)
+  discount       Decimal   @db.Decimal(10, 2)
+  notes          Note[]
+  documents      OrderDocument[]
+  expectedDate   DateTime
+  deliveryDate   DateTime?
+  createdBy      User      @relation(fields: [createdById], references: [id])
+  createdById    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model SalesOrderItem {
+  id              String      @id @default(uuid())
+  salesOrder      SalesOrder  @relation(fields: [salesOrderId], references: [id])
+  salesOrderId    String
+  product         Product     @relation(fields: [productId], references: [id])
+  productId       String
+  quantity        Int
+  unitPrice       Decimal     @db.Decimal(10, 2)
+  totalPrice      Decimal     @db.Decimal(10, 2)
+  status          OrderItemStatus @default(PENDING)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+// Stock Movement and Tracking
+model StockMovement {
+  id          String        @id @default(uuid())
+  product     Product       @relation(fields: [productId], references: [id])
+  productId   String
+  type        MovementType
+  quantity    Int
+  reason      String
+  reference   String?       // Reference to related document (PO, SO, etc.)
+  notes       String?       @db.Text
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+// Quality Control
+model QualityCheck {
+  id          String    @id @default(uuid())
+  product     Product   @relation(fields: [productId], references: [id])
+  productId   String
+  checkDate   DateTime
+  inspector   User      @relation(fields: [inspectorId], references: [id])
+  inspectorId String
+  status      QCStatus
+  notes       String?   @db.Text
+  documents   QCDocument[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// User Management
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String
+  firstName       String
+  lastName        String
+  role            Role      @default(USER)
+  department      Department?
+  warehouse       Warehouse? @relation(fields: [warehouseId], references: [id])
+  warehouseId     String?
+  phone           String?
+  address         Address?  @relation(fields: [addressId], references: [id])
+  addressId       String?   @unique
+  isActive        Boolean   @default(true)
+  lastLogin       DateTime?
+  productsCreated Product[] @relation("ProductCreator")
+  productsModified Product[] @relation("ProductModifier")
+  purchaseOrders  PurchaseOrder[]
+  stockMovements  StockMovement[]
+  qualityChecks   QualityCheck[]
+  notifications   UserNotification[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// Customer Management
+model Customer {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  type        CustomerType
+  firstName   String
+  lastName    String
+  email       String    @unique
+  phone       String
+  company     String?
+  taxId       String?
+  address     Address?  @relation(fields: [addressId], references: [id])
+  addressId   String?   @unique
+  orders      SalesOrder[]
+  creditLimit Decimal?  @db.Decimal(10, 2)
+  status      CustomerStatus @default(ACTIVE)
+  notes       Note[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Supporting Models
+model Address {
+  id          String    @id @default(uuid())
+  street      String
+  city        String
+  state       String
+  country     String
+  postalCode  String
+  supplier    Supplier?
+  warehouse   Warehouse?
+  customer    Customer?
+  user        User?
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ProductImage {
+  id          String    @id @default(uuid())
+  product     Product   @relation(fields: [productId], references: [id])
+  productId   String
+  url         String
+  isPrimary   Boolean   @default(false)
+  altText     String?
+  createdAt   DateTime  @default(now())
+}
+
+model ProductDocument {
+  id          String    @id @default(uuid())
+  product     Product   @relation(fields: [productId], references: [id])
+  productId   String
+  type        DocumentType
+  url         String
+  name        String
+  createdAt   DateTime  @default(now())
+}
+
+model SupplierDocument {
+  id          String    @id @default(uuid())
+  supplier    Supplier  @relation(fields: [supplierId], references: [id])
+  supplierId  String
+  type        DocumentType
+  url         String
+  name        String
+  createdAt   DateTime  @default(now())
+}
+
+model OrderDocument {
+  id              String    @id @default(uuid())
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrderId String?
+  salesOrder      SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  salesOrderId    String?
+  type            DocumentType
+  url             String
+  name            String
+  createdAt       DateTime  @default(now())
+}
+
+model QCDocument {
+  id              String        @id @default(uuid())
+  qualityCheck    QualityCheck  @relation(fields: [qualityCheckId], references: [id])
+  qualityCheckId  String
+  type            DocumentType
+  url             String
+  name            String
+  createdAt       DateTime      @default(now())
+}
+
+model Note {
+  id          String    @id @default(uuid())
+  content     String    @db.Text
+  product     Product?  @relation(fields: [productId], references: [id])
+  productId   String?
+  supplier    Supplier? @relation(fields: [supplierId], references: [id])
+  supplierId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  customerId  String?
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrderId String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ProductTag {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  products    Product[]
+  createdAt   DateTime  @default(now())
+}
+
+model Notification {
+  id          String    @id @default(uuid())
+  type        NotificationType
+  message     String    @db.Text
+  users       UserNotification[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model UserNotification {
+  id              String        @id @default(uuid())
+  notification    Notification  @relation(fields: [notificationId], references: [id])
+  notificationId  String
+  user            User          @relation(fields: [userId], references: [id])
+  userId          String
+  isRead          Boolean       @default(false)
+  readAt          DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@unique([notificationId, userId])
+}
+
+// Enums
+enum Unit {
+  PIECES
+  KG
+  GRAMS
+  LITERS
+  METERS
+  BOXES
+  PALLETS
+}
+
+enum MovementType {
+  PURCHASE
+  SALE
+  RETURN
+  ADJUSTMENT
+  TRANSFER
+  DAMAGE
+  LOSS
+}
+
+enum Role {
+  USER
+  ADMIN
+  MANAGER
+  WAREHOUSE_STAFF
+  SUPPLIER
+  QUALITY_INSPECTOR
+}
+
+enum Department {
+  INVENTORY
+  PURCHASING
+  SALES
+  QUALITY_CONTROL
+  WAREHOUSE
+  ADMIN
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+  OUT_OF_STOCK
+  LOW_STOCK
+}
+
+enum ProductCondition {
+  NEW
+  USED
+  REFURBISHED
+  DAMAGED
+}
+
+enum SupplierType {
+  MANUFACTURER
+  WHOLESALER
+  DISTRIBUTOR
+  IMPORTER
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  PENDING
+}
+
+enum CustomerType {
+  INDIVIDUAL
+  BUSINESS
+  WHOLESALER
+  RETAILER
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  PENDING
+}
+
+enum WarehouseType {
+  MAIN
+  SATELLITE
+  THIRD_PARTY
+  TRANSIT
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum OrderItemStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+enum QCStatus {
+  PENDING
+  PASSED
+  FAILED
+  CONDITIONAL
+}
+
+enum DocumentType {
+  INVOICE
+  RECEIPT
+  CERTIFICATE
+  SPECIFICATION
+  MANUAL
+  CONTRACT
+  REPORT
+}
+
+enum NotificationType {
+  LOW_STOCK
+  STOCK_OUT
+  PRICE_CHANGE
+  NEW_SHIPMENT
+  ORDER_STATUS
+  QUALITY_ALERT
+  SYSTEM
+}

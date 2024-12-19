@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #fde9e8;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            border-bottom: 3px solid #dc3545;
+        }
+        .header h2 {
+            color: #dc3545;
+            margin: 0;
+        }
+        .alert-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #dc3545;
+        }
+        .content {
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+        }
+        .quality-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .status-PENDING { background-color: #fff3cd; color: #856404; }
+        .status-PASSED { background-color: #d4edda; color: #155724; }
+        .status-FAILED { background-color: #f8d7da; color: #721c24; }
+        .status-CONDITIONAL { background-color: #fff3cd; color: #856404; }
+        
+        .product-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .inspection-details {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .quality-metrics {
+            margin: 15px 0;
+        }
+        .metric-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .metric-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .metric-value {
+            color: #666;
+        }
+        .action-required {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .recommendations {
+            background-color: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 20px;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #dee2e6;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+        .image-gallery {
+            margin: 15px 0;
+        }
+        .image-gallery img {
+            max-width: 150px;
+            margin: 5px;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="alert-icon">🔍</div>
+        <h2>Quality Control Alert</h2>
+        <div class="quality-status status-{{status}}">{{status}}</div>
+    </div>
+    
+    <div class="content">
+        <p>Hello {{firstName}} {{lastName}},</p>
+        
+        <p>A quality control inspection has been completed with the following results:</p>
+        
+        <div class="product-details">
+            <h3>Product Information</h3>
+            <table>
+                <tr>
+                    <td><strong>Product Name:</strong></td>
+                    <td>{{productName}}</td>
+                </tr>
+                <tr>
+                    <td><strong>SKU:</strong></td>
+                    <td>{{sku}}</td>
+                </tr>
+                <tr>
+                    <td><strong>Batch Number:</strong></td>
+                    <td>{{batchNumber}}</td>
+                </tr>
+                <tr>
+                    <td><strong>Supplier:</strong></td>
+                    <td>{{supplierName}}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="inspection-details">
+            <h3>Inspection Details</h3>
+            <table>
+                <tr>
+                    <td><strong>Inspector:</strong></td>
+                    <td>{{inspectorName}}</td>
+                </tr>
+                <tr>
+                    <td><strong>Inspection Date:</strong></td>
+                    <td>{{inspectionDate}}</td>
+                </tr>
+                <tr>
+                    <td><strong>Location:</strong></td>
+                    <td>{{location}}</td>
+                </tr>
+            </table>
+        </div>
+
+        {{#if qualityMetrics}}
+        <div class="quality-metrics">
+            <h3>Quality Metrics</h3>
+            {{#each qualityMetrics}}
+            <div class="metric-item">
+                <div class="metric-label">{{name}}</div>
+                <div class="metric-value">{{value}}</div>
+                {{#if comment}}
+                <div class="metric-comment">Note: {{comment}}</div>
+                {{/if}}
+            </div>
+            {{/each}}
+        </div>
+        {{/if}}
+
+        {{#if issues}}
+        <div class="action-required">
+            <h3>Issues Identified</h3>
+            <ul>
+                {{#each issues}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+
+        {{#if recommendations}}
+        <div class="recommendations">
+            <h3>Recommendations</h3>
+            <ul>
+                {{#each recommendations}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+
+        {{#if images}}
+        <div class="image-gallery">
+            <h3>Inspection Images</h3>
+            {{#each images}}
+            <img src="{{this}}" alt="Inspection image {{@index}}" />
+            {{/each}}
+        </div>
+        {{/if}}
+
+        <div class="next-steps">
+            <h3>Required Actions</h3>
+            <p>Please review this quality control report and take necessary actions based on the findings.</p>
+            {{#if actionItems}}
+            <ul>
+                {{#each actionItems}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+            {{/if}}
+        </div>
+
+        <a href="{{systemUrl}}/quality-control/{{inspectionId}}" class="button">View Full Report</a>
+    </div>
+    
+    <div class="footer">
+        <p>&copy; {{year}} {{companyName}}. All rights reserved.</p>
+        <p>This is an automated message from your Inventory Management System.</p>
+        <p>For any questions about this quality control report, please contact the Quality Control Department.</p>
+    </div>
+</body>
+</html>
